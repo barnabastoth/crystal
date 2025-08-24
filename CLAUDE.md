@@ -571,36 +571,73 @@ The react-diff-viewer-continued library uses emotion/styled-components internall
 
 ## Available Commands
 
+### Development Commands
+
 ```bash
-# One-time setup (install, build, and rebuild native modules)
-pnpm run setup
+# Install dependencies (use yarn instead of pnpm)
+yarn install
 
 # Run as Electron app in development mode
-pnpm electron-dev
+yarn electron-dev
 # Or use the shorthand:
-pnpm run dev
+yarn run dev
 
 # Run frontend only (without Electron shell)
-pnpm dev
-
-# Build for production
-pnpm build
+yarn dev
 
 # Type checking
-pnpm typecheck
+yarn typecheck
 
 # Linting
-pnpm lint
+yarn lint
 ```
 
-**Note:** You must run `pnpm run build:main` at least once before running `pnpm electron-dev` to compile the main process.
+### Build Commands
+
+```bash
+# Build frontend only
+yarn run build:frontend
+
+# Build main process only
+yarn run build:main
+
+# Build everything
+yarn build
+
+# Build and package for Linux (single command)
+npm run dist
+# This runs: yarn run build:frontend && yarn run build:main && yarn run inject-build-info && yarn run generate-notices && yarn run electron-builder --linux --publish never
+```
 
 ### Building Packaged Electron App
 
 ```bash
-# Build for macOS
-pnpm build:mac    # macOS (only works on macOS)
+# Build for Linux (creates AppImage and .deb)
+yarn run build:linux
+# Or use the simplified command:
+npm run dist
+
+# Build for macOS (only works on macOS)
+yarn build:mac
 ```
+
+### Important Build Notes
+
+1. **Package Manager**: This project now uses **yarn** instead of pnpm due to memory issues with large dependency trees
+2. **Memory Issues**: If you encounter JavaScript heap out of memory errors, use:
+   ```bash
+   NODE_OPTIONS="--max-old-space-size=8192" yarn install
+   ```
+3. **Quick Build & Install**: After making changes, run:
+   ```bash
+   npm run dist
+   ```
+   This will build and package Crystal, outputting to `dist-electron/Crystal-0.2.2-linux-x86_64.AppImage`
+4. **Install to App Launcher**: 
+   ```bash
+   cp dist-electron/Crystal-*.AppImage ~/.local/bin/Crystal
+   chmod +x ~/.local/bin/Crystal
+   ```
 
 ## Project Structure
 
