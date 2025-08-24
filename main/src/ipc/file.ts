@@ -46,6 +46,192 @@ interface FileSearchRequest {
   limit?: number;
 }
 
+/**
+ * Calculate a relevance score for file matching with smart fuzzy and abbreviation matching
+ * @param filePath - The full file path
+ * @param fileName - The file name (basename)
+ * @param searchPattern - Original search pattern
+ * @param searchPatternLower - Lowercase version of search pattern
+ * @returns Score (higher = better match, 0 = no match)
+ */
+function calculateFileMatchScore(filePath: string, fileName: string, searchPattern: string, searchPatternLower: string): number {
+  const filePathLower = filePath.toLowerCase();
+  const fileNameLower = fileName.toLowerCase();
+  
+  // 1. Exact match (highest priority)
+  if (fileNameLower === searchPatternLower) return 1000;
+  if (filePathLower === searchPatternLower) return 950;
+  
+  // 2. Exact prefix match
+  if (fileNameLower.startsWith(searchPatternLower)) return 800;
+  if (filePathLower.startsWith(searchPatternLower)) return 750;
+  
+  // 3. Special handling for camelCase and different naming conventions
+  // Convert "httpApi" to match "http-api", "http_api", "httpapi", "httpApi", etc.
+  
+  // First check if the file name contains the pattern ignoring case and separators
+  const normalizedPattern = searchPatternLower.replace(/[-_]/g, '');
+  const normalizedFileName = fileNameLower.replace(/[-_\.]/g, '');
+  
+  console.log(`[DEBUG] Normalized check: pattern="${normalizedPattern}" file="${normalizedFileName}"`);
+  
+  if (normalizedFileName.includes(normalizedPattern)) {
+    console.log(`[DEBUG] Normalized match: "${fileName}" matches pattern "${searchPattern}"`);
+    return 700;
+  }
+  
+  // Also check if it's at the start of the normalized name (higher priority)
+  if (normalizedFileName.startsWith(normalizedPattern)) {
+    console.log(`[DEBUG] Normalized prefix match: "${fileName}" matches pattern "${searchPattern}"`);
+    return 720;
+  }
+  
+  // 4. Fuzzy matching (characters in sequence with gaps allowed)
+  const fuzzyScore = calculateFuzzyScore(fileNameLower, searchPatternLower);
+  console.log(`[DEBUG] Fuzzy match: "${fileName}" vs "${searchPattern}" -> score: ${fuzzyScore}`);
+  if (fuzzyScore > 0.3) return 600 + fuzzyScore * 100; // 630-700 range
+  
+  const fuzzyPathScore = calculateFuzzyScore(filePathLower, searchPatternLower);
+  if (fuzzyPathScore > 0.3) return 500 + fuzzyPathScore * 100; // 530-600 range
+  
+  // 5. Abbreviation matching (first letters of words/segments)
+  const abbreviationScore = calculateAbbreviationScore(fileName, searchPattern);
+  console.log(`[DEBUG] Abbreviation match: "${fileName}" vs "${searchPattern}" -> score: ${abbreviationScore}`);
+  if (abbreviationScore > 0.7) return 550 + abbreviationScore * 50; // 550-600 range
+  
+  const abbreviationPathScore = calculateAbbreviationScore(filePath, searchPattern);
+  if (abbreviationPathScore > 0.7) return 500 + abbreviationPathScore * 50; // 500-550 range
+  
+  // 6. Very loose fuzzy matching (lower threshold)
+  if (fuzzyScore > 0.1) return 400 + fuzzyScore * 50; // 400-450 range
+  if (fuzzyPathScore > 0.1) return 350 + fuzzyPathScore * 50; // 350-400 range
+  
+  // 7. Looser abbreviation matching
+  if (abbreviationScore > 0.4) return 250 + abbreviationScore * 50; // 250-300 range
+  if (abbreviationPathScore > 0.4) return 200 + abbreviationPathScore * 50; // 200-250 range
+  
+  // 8. Substring matching (original behavior as fallback)
+  if (fileNameLower.includes(searchPatternLower)) return 150;
+  if (filePathLower.includes(searchPatternLower)) return 100;
+  
+  // 9. Word boundary matching (searching for parts of words)
+  if (hasWordBoundaryMatch(fileNameLower, searchPatternLower)) return 75;
+  if (hasWordBoundaryMatch(filePathLower, searchPatternLower)) return 50;
+  
+  return 0; // No match
+}
+
+/**
+ * Calculate fuzzy matching score (characters in sequence with gaps allowed)
+ * Example: "httpApi" matches "httpAp-js" because h-t-t-p-A-p-i sequence exists
+ */
+function calculateFuzzyScore(text: string, pattern: string): number {
+  if (!pattern) return 0;
+  if (text === pattern) return 1;
+  
+  let textIndex = 0;
+  let patternIndex = 0;
+  const matches: number[] = [];
+  
+  // Find all character matches in sequence
+  while (textIndex < text.length && patternIndex < pattern.length) {
+    if (text[textIndex] === pattern[patternIndex]) {
+      matches.push(textIndex);
+      patternIndex++;
+    }
+    textIndex++;
+  }
+  
+  // If we didn't match all pattern characters, it's not a fuzzy match
+  if (patternIndex < pattern.length) return 0;
+  
+  // Calculate score based on:
+  // 1. How many characters matched (completeness)
+  // 2. How close together the matches are (compactness)
+  // 3. Early matches are better than late ones (position)
+  
+  const completeness = matches.length / pattern.length;
+  const span = matches[matches.length - 1] - matches[0] + 1;
+  const compactness = pattern.length / span;
+  const position = 1 - (matches[0] / text.length);
+  
+  return completeness * 0.4 + compactness * 0.4 + position * 0.2;
+}
+
+/**
+ * Calculate abbreviation matching score
+ * Example: "userSubCol" matches "userSubscriptionCollection.js"
+ * by matching first letters: u-ser S-ub Col-lection
+ */
+function calculateAbbreviationScore(text: string, pattern: string): number {
+  if (!pattern) return 0;
+  
+  // Extract abbreviation from file name (first letters of segments)
+  const textAbbrev = extractAbbreviation(text).toLowerCase();
+  const patternLower = pattern.toLowerCase();
+  
+  if (textAbbrev === patternLower) return 1;
+  if (textAbbrev.startsWith(patternLower)) return 0.9;
+  
+  // Check if pattern matches subsequence of abbreviation
+  let textIndex = 0;
+  let patternIndex = 0;
+  
+  while (textIndex < textAbbrev.length && patternIndex < patternLower.length) {
+    if (textAbbrev[textIndex] === patternLower[patternIndex]) {
+      patternIndex++;
+    }
+    textIndex++;
+  }
+  
+  if (patternIndex === patternLower.length) {
+    // All pattern characters found in abbreviation
+    return patternLower.length / textAbbrev.length * 0.8;
+  }
+  
+  return 0;
+}
+
+/**
+ * Extract abbreviation from text by taking first letters of words/segments
+ * Example: "userSubscriptionCollection.js" -> "usercjs"
+ * Example: "http-api-server.ts" -> "hasts"
+ */
+function extractAbbreviation(text: string): string {
+  // Remove file extension for abbreviation calculation
+  const nameWithoutExt = text.replace(/\.[^.]*$/, '');
+  
+  // Split on common separators and extract first letters
+  const parts = nameWithoutExt.split(/[-_\s.\/\\]/);
+  let abbreviation = '';
+  
+  for (const part of parts) {
+    if (part.length > 0) {
+      // Add first letter
+      abbreviation += part[0];
+      
+      // Add capital letters from the middle (camelCase)
+      for (let i = 1; i < part.length; i++) {
+        if (part[i] >= 'A' && part[i] <= 'Z') {
+          abbreviation += part[i].toLowerCase();
+        }
+      }
+    }
+  }
+  
+  return abbreviation;
+}
+
+/**
+ * Check if pattern matches at word boundaries
+ * Example: "api" matches "http-api-server" at word boundary
+ */
+function hasWordBoundaryMatch(text: string, pattern: string): boolean {
+  // Split on word boundaries and check if any part starts with pattern
+  const parts = text.split(/[-_\s.\/\\]+/);
+  return parts.some(part => part.startsWith(pattern));
+}
+
 export function registerFileHandlers(ipcMain: IpcMain, services: AppServices): void {
   const { sessionManager, databaseService } = services;
 
@@ -546,8 +732,9 @@ EOF
         throw new Error('Either sessionId or projectId must be provided');
       }
 
-      // Normalize the pattern for searching
-      const searchPattern = request.pattern.replace(/^@/, '').toLowerCase();
+      // Normalize the pattern for searching (remove @ prefix but keep original case)
+      const searchPattern = request.pattern.replace(/^@/, '');
+      const searchPatternLower = searchPattern.toLowerCase();
       
       // If the pattern contains a path separator, search from that path
       const pathParts = searchPattern.split(/[/\\]/);
@@ -604,8 +791,9 @@ EOF
         console.log('Could not get git tracked files:', err);
       }
 
-      // Use glob to find matching files
-      const globPattern = filePattern ? `**/*${filePattern}*` : '**/*';
+      // Use glob to find ALL files, we'll filter with smart matching later
+      // This ensures we don't miss files with different naming conventions
+      const globPattern = '**/*';
       const files = await glob(globPattern, {
         cwd: searchDir,
         ignore: [
@@ -658,20 +846,48 @@ EOF
         })
       );
 
-      // Filter out null results and apply pattern matching
-      const filteredResults = results
+      // Pre-filter: Only process files that might match (very permissive)
+      // This helps performance by not scoring every single file
+      const preFiltered = results
         .filter((file): file is NonNullable<typeof file> => file !== null)
         .filter(file => {
-          // Filter by the full search pattern
-          return file.path.toLowerCase().includes(searchPattern);
-        })
+          if (!filePattern) return true; // If no pattern, include all
+          
+          // Very permissive pre-filter
+          const fileNameLower = file.name.toLowerCase();
+          const normalizedFileName = fileNameLower.replace(/[-_\.]/g, '');
+          const normalizedPattern = searchPatternLower.replace(/[-_]/g, '');
+          
+          // Include file if:
+          // 1. Normalized names match somehow
+          // 2. First few characters match
+          // 3. File contains some part of the pattern
+          return normalizedFileName.includes(normalizedPattern) ||
+                 normalizedPattern.includes(normalizedFileName.replace(/js$|ts$|jsx$|tsx$/, '')) ||
+                 fileNameLower.startsWith(searchPatternLower.slice(0, 3)) ||
+                 normalizedFileName.startsWith(normalizedPattern.slice(0, 3));
+        });
+      
+      // Smart file matching with scoring
+      const scoredResults = preFiltered
+        .map(file => ({
+          ...file,
+          score: calculateFileMatchScore(file.path, file.name, searchPattern, searchPatternLower)
+        }))
+        .filter(file => file.score > 0)
         .sort((a, b) => {
-          // Sort directories first, then by path
+          // First sort by score (higher is better)
+          if (b.score !== a.score) return b.score - a.score;
+          // Then sort directories first
           if (a.isDirectory && !b.isDirectory) return -1;
           if (!a.isDirectory && b.isDirectory) return 1;
-          return a.path.localeCompare(b.path);
+          // Finally sort by path length (shorter paths generally more relevant)
+          return a.path.length - b.path.length;
         })
         .slice(0, request.limit || 50);
+
+      // Remove score from final results
+      const filteredResults = scoredResults.map(({ score, ...file }) => file);
 
       return { success: true, files: filteredResults };
     } catch (error) {

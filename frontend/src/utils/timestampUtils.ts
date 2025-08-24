@@ -8,7 +8,7 @@
  * @returns Localized time string
  */
 export function formatForDisplay(timestamp: string | Date): string {
-  const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
+  const date = typeof timestamp === 'string' ? parseTimestamp(timestamp) : timestamp;
   return date.toLocaleTimeString();
 }
 

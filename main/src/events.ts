@@ -3,6 +3,7 @@ import { execSync } from './utils/commandExecutor';
 import type { AppServices } from './ipc/types';
 import type { VersionInfo } from './services/versionChecker';
 import { addSessionLog } from './ipc/logs';
+import { formatJsonForOutputEnhanced } from './utils/toolFormatter';
 
 export function setupEventListeners(services: AppServices, getMainWindow: () => BrowserWindow | null): void {
   const {
@@ -134,10 +135,24 @@ export function setupEventListeners(services: AppServices, getMainWindow: () => 
     // Send real-time updates to renderer
     const mw = getMainWindow();
     if (mw) {
-      // Always send the output as-is, without formatting
-      // JSON messages will be formatted when loaded from the database via sessions:get-output
-      // This prevents duplicate formatted messages in the Output view
-      mw.webContents.send('session:output', output);
+      // For JSON messages, send both raw and formatted versions
+      if (output.type === 'json') {
+        // Send the raw JSON for Messages view
+        mw.webContents.send('session:output', output);
+        
+        // Also send formatted version for Output view
+        const formattedText = formatJsonForOutputEnhanced(output.data);
+        if (formattedText) {
+          mw.webContents.send('session:output', {
+            ...output,
+            type: 'stdout',
+            data: formattedText
+          });
+        }
+      } else {
+        // For non-JSON outputs (stdout, stderr), send as-is
+        mw.webContents.send('session:output', output);
+      }
     }
   });
 

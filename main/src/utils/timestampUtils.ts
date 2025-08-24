@@ -33,10 +33,25 @@ export function formatFullDateTime(timestamp: string | Date): string {
 
 /**
  * Parses a database timestamp string to a Date object
- * @param timestamp - The timestamp string from database
+ * SQLite DATETIME stores timestamps without timezone info, but they are in UTC
+ * @param timestamp - The timestamp string from database or Date object
  * @returns Date object
  */
-export function parseTimestamp(timestamp: string): Date {
+export function parseTimestamp(timestamp: string | Date): Date {
+  if (timestamp instanceof Date) {
+    return timestamp;
+  }
+  
+  // SQLite DATETIME format: "YYYY-MM-DD HH:MM:SS" or "YYYY-MM-DD HH:MM:SS.SSS"
+  // These are stored in UTC but without timezone indicator
+  const sqliteDateTimeRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{3})?$/;
+  
+  if (sqliteDateTimeRegex.test(timestamp)) {
+    // This is a SQLite timestamp in UTC, convert to ISO format with Z suffix
+    return new Date(timestamp.replace(' ', 'T') + 'Z');
+  }
+  
+  // For ISO strings and other formats, parse normally
   return new Date(timestamp);
 }
 

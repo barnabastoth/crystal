@@ -113,7 +113,7 @@ const FilePathAutocomplete: React.FC<FilePathAutocompleteProps> = ({
     // Calculate available space vertically
     const spaceBelow = viewportHeight - inputRect.bottom - padding;
     const spaceAbove = inputRect.top - padding;
-    const dropdownHeight = Math.min(dropdownRect.height, 240); // max-h-60 = 240px
+    const dropdownHeight = Math.min(dropdownRect.height, 384); // max-h-96 = 384px
     
     // Calculate optimal width
     const desiredWidth = Math.min(dropdownRect.width, 800); // Max 800px as before
@@ -186,6 +186,7 @@ const FilePathAutocomplete: React.FC<FilePathAutocompleteProps> = ({
       });
 
       if (result.success && result.files) {
+        console.log('[DEBUG] Search results:', result.files.length, 'files found');
         setSuggestions(result.files);
         setSelectedIndex(0);
       }
@@ -208,6 +209,7 @@ const FilePathAutocomplete: React.FC<FilePathAutocompleteProps> = ({
     setActivePattern(pattern);
 
     if (pattern) {
+      console.log('[DEBUG] Detected pattern:', pattern);
       // Clear existing timeout
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
@@ -215,10 +217,12 @@ const FilePathAutocomplete: React.FC<FilePathAutocompleteProps> = ({
 
       // Debounce the search
       searchTimeoutRef.current = setTimeout(() => {
+        console.log('[DEBUG] Searching for pattern:', pattern.pattern);
         searchFiles(pattern.pattern);
         setShowSuggestions(true);
       }, 200);
     } else {
+      console.log('[DEBUG] No pattern detected, hiding suggestions');
       setShowSuggestions(false);
       setSuggestions([]);
     }
@@ -372,7 +376,7 @@ const FilePathAutocomplete: React.FC<FilePathAutocompleteProps> = ({
       {showSuggestions && suggestions.length > 0 && (
         <div
           ref={dropdownRef}
-          className="absolute z-50 max-h-60 overflow-auto rounded-md bg-surface-secondary py-1 shadow-lg ring-1 ring-black ring-opacity-5 border border-border-primary"
+          className="absolute z-50 max-h-96 overflow-auto rounded-md bg-surface-secondary py-1 shadow-lg ring-1 ring-black ring-opacity-5 border border-border-primary"
           style={{
             minWidth: Math.min(300, dropdownPosition?.maxWidth || 300) + 'px',
             maxWidth: dropdownPosition?.maxWidth || '800px',

@@ -199,6 +199,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     readProject: (projectId: number, filePath: string): Promise<IPCResponse> => ipcRenderer.invoke('file:read-project', { projectId, filePath }),
   },
 
+  // IDE operations
+  ide: {
+    openFile: (request: { sessionId?: string; filePath: string; lineNumber?: number }): Promise<IPCResponse> => ipcRenderer.invoke('ide:openFile', request),
+    detectIDEs: (): Promise<IPCResponse> => ipcRenderer.invoke('ide:detectIDEs'),
+  },
+
   // Dialog
   dialog: {
     openFile: (options?: any): Promise<IPCResponse<string | null>> => ipcRenderer.invoke('dialog:open-file', options),

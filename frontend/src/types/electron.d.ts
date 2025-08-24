@@ -157,6 +157,12 @@ interface ElectronAPI {
     readProject: (projectId: number, filePath: string) => Promise<IPCResponse>;
   };
 
+  // IDE operations
+  ide: {
+    openFile: (request: { sessionId?: string; filePath: string; lineNumber?: number }) => Promise<IPCResponse<{ success: boolean; editor?: string; error?: string }>>;
+    detectIDEs: () => Promise<IPCResponse<{ success: boolean; ides: string[] }>>;
+  };
+
   // Dialog
   dialog: {
     openFile: (options?: any) => Promise<IPCResponse<string | null>>;

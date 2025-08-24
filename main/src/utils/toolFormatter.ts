@@ -1,5 +1,6 @@
 import * as path from 'path';
 import { formatJsonForOutput } from './formatters';
+import { parseTimestamp } from './timestampUtils';
 
 interface ToolCall {
   type: 'tool_use';
@@ -116,7 +117,7 @@ export function formatToolInteraction(
   // Safely parse timestamp
   let timestamp: string;
   try {
-    const date = new Date(callTimestamp);
+    const date = parseTimestamp(callTimestamp);
     if (isNaN(date.getTime())) {
       throw new Error('Invalid timestamp');
     }
@@ -149,6 +150,12 @@ export function formatToolInteraction(
     } else if (toolCall.name === 'Edit' && toolCall.input.file_path) {
       output += `\x1b[90m│  File: ${makePathsRelative(toolCall.input.file_path, gitRepoPath)}\x1b[0m\r\n`;
       output += `\x1b[90m│  Replacements: ${toolCall.input.expected_replacements || 1}\x1b[0m\r\n`;
+      // Add a special marker for edit operations
+      output += `\x1b[90m│  [EDIT_OPERATION:${toolCall.input.file_path}]\x1b[0m\r\n`;
+      if (toolCall.input.old_string && toolCall.input.new_string) {
+        output += `\x1b[90m│  [OLD_STRING:${Buffer.from(toolCall.input.old_string).toString('base64')}]\x1b[0m\r\n`;
+        output += `\x1b[90m│  [NEW_STRING:${Buffer.from(toolCall.input.new_string).toString('base64')}]\x1b[0m\r\n`;
+      }
     } else if (toolCall.name === 'Bash' && toolCall.input.command) {
       output += `\x1b[90m│  $ ${toolCall.input.command}\x1b[0m\r\n`;
     } else if (toolCall.name === 'TodoWrite' && toolCall.input.todos) {
@@ -170,6 +177,16 @@ export function formatToolInteraction(
     } else if (toolCall.name === 'MultiEdit' && toolCall.input.file_path) {
       output += `\x1b[90m│  File: ${makePathsRelative(toolCall.input.file_path, gitRepoPath)}\x1b[0m\r\n`;
       output += `\x1b[90m│  Edits: ${toolCall.input.edits?.length || 0} changes\x1b[0m\r\n`;
+      // Add special markers for MultiEdit operations
+      output += `\x1b[90m│  [MULTIEDIT_OPERATION:${toolCall.input.file_path}]\x1b[0m\r\n`;
+      if (toolCall.input.edits && toolCall.input.edits.length > 0) {
+        toolCall.input.edits.forEach((edit: any, index: number) => {
+          if (edit.old_string && edit.new_string) {
+            output += `\x1b[90m│  [EDIT_${index}_OLD:${Buffer.from(edit.old_string).toString('base64')}]\x1b[0m\r\n`;
+            output += `\x1b[90m│  [EDIT_${index}_NEW:${Buffer.from(edit.new_string).toString('base64')}]\x1b[0m\r\n`;
+          }
+        });
+      }
     } else if (toolCall.name === 'Task' && toolCall.input.prompt) {
       const prompt = toolCall.input.prompt;
       const truncated = prompt.length > 100 ? prompt.substring(0, 100) + '...' : prompt;
@@ -405,7 +422,7 @@ export function formatJsonForOutputEnhanced(jsonMessage: any, gitRepoPath?: stri
         thinkingItems.forEach((item: any) => {
           const time = (() => {
             try {
-              const date = new Date(timestamp);
+              const date = parseTimestamp(timestamp);
               return !isNaN(date.getTime()) ? date.toLocaleTimeString() : new Date().toLocaleTimeString();
             } catch {
               return new Date().toLocaleTimeString();
@@ -453,7 +470,7 @@ export function formatJsonForOutputEnhanced(jsonMessage: any, gitRepoPath?: stri
       if (textContent) {
         const time = (() => {
           try {
-            const date = new Date(timestamp);
+            const date = parseTimestamp(timestamp);
             return !isNaN(date.getTime()) ? date.toLocaleTimeString() : new Date().toLocaleTimeString();
           } catch {
             return new Date().toLocaleTimeString();
@@ -497,7 +514,7 @@ export function formatJsonForOutputEnhanced(jsonMessage: any, gitRepoPath?: stri
             // Orphaned tool result
             const time = (() => {
               try {
-                const date = new Date(timestamp);
+                const date = parseTimestamp(timestamp);
                 return !isNaN(date.getTime()) ? date.toLocaleTimeString() : new Date().toLocaleTimeString();
               } catch {
                 return new Date().toLocaleTimeString();
@@ -534,7 +551,7 @@ export function formatJsonForOutputEnhanced(jsonMessage: any, gitRepoPath?: stri
       if (textContent) {
         const time = (() => {
           try {
-            const date = new Date(timestamp);
+            const date = parseTimestamp(timestamp);
             return !isNaN(date.getTime()) ? date.toLocaleTimeString() : new Date().toLocaleTimeString();
           } catch {
             return new Date().toLocaleTimeString();
@@ -554,7 +571,7 @@ export function formatJsonForOutputEnhanced(jsonMessage: any, gitRepoPath?: stri
     const data = jsonMessage.data || {};
     const time = (() => {
       try {
-        const date = new Date(timestamp);
+        const date = parseTimestamp(timestamp);
         return !isNaN(date.getTime()) ? date.toLocaleTimeString() : new Date().toLocaleTimeString();
       } catch {
         return new Date().toLocaleTimeString();

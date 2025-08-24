@@ -380,6 +380,19 @@ export class API {
     },
   };
 
+  // IDE operations
+  static ide = {
+    async openFile(request: { sessionId?: string; filePath: string; lineNumber?: number }) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.ide.openFile(request);
+    },
+
+    async detectIDEs() {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.ide.detectIDEs();
+    },
+  };
+
   // Permissions
   static permissions = {
     async respond(requestId: string, response: any) {

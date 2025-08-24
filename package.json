@@ -31,6 +31,7 @@
     "build:mac:x64": "pnpm run build:frontend && pnpm run build:main && pnpm run inject-build-info && pnpm run generate-notices && node scripts/configure-build.js && electron-builder --mac --x64 --publish never",
     "build:mac:arm64": "pnpm run build:frontend && pnpm run build:main && pnpm run inject-build-info && pnpm run generate-notices && node scripts/configure-build.js && electron-builder --mac --arm64 --publish never",
     "build:linux": "pnpm run build:frontend && pnpm run build:main && pnpm run inject-build-info && pnpm run generate-notices && electron-builder --linux --publish never",
+    "dist": "yarn run build:frontend && yarn run build:main && yarn run inject-build-info && yarn run generate-notices && yarn run electron-builder --linux --publish never",
     "build:linux:ci": "pnpm run build:frontend && pnpm run build:main && pnpm run inject-build-info && pnpm run generate-notices && electron-builder --linux --publish never",
     "build:mac:ci": "pnpm run build:frontend && pnpm run build:main && pnpm run inject-build-info && pnpm run generate-notices && node scripts/configure-build.js && electron-builder --mac --publish never",
     "inject-build-info": "node scripts/inject-build-info.js",
@@ -63,6 +64,7 @@
     "electron-updater": "^6.6.2",
     "glob": "^11.0.0",
     "openai": "^5.1.1",
+    "typescript": "^5.9.2",
     "web-streams-polyfill": "^3.3.3"
   },
   "devDependencies": {
@@ -165,6 +167,5 @@
       "owner": "stravu",
       "repo": "crystal"
     }
-  },
-  "packageManager": "pnpm@10.11.1+sha512.e519b9f7639869dc8d5c3c5dfef73b3f091094b0a006d7317353c72b124e80e1afd429732e28705ad6bfa1ee879c1fce46c128ccebd3192101f43dd67c667912"
+  }
 }

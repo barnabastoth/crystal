@@ -164,12 +164,11 @@ export function useIPCEvents() {
     const unsubscribeSessionOutput = window.electronAPI.events.onSessionOutput((output: SessionOutput) => {
       console.log(`[useIPCEvents] Received session output for ${output.sessionId}, type: ${output.type}`);
       
-      // Don't add output to session store anymore - we'll reload from database
-      // This prevents duplicate outputs from being displayed
-      // addSessionOutput(output);
+      // Add output to session store for real-time display
+      const { addSessionOutput } = useSessionStore.getState();
+      addSessionOutput(output);
       
-      // Just emit custom event to notify that new output is available
-      // The view will reload all output from the database
+      // Also emit custom event to notify that new output is available
       window.dispatchEvent(new CustomEvent('session-output-available', {
         detail: { sessionId: output.sessionId }
       }));
