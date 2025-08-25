@@ -4,6 +4,7 @@ import type { AppServices } from './ipc/types';
 import type { VersionInfo } from './services/versionChecker';
 import { addSessionLog } from './ipc/logs';
 import { formatJsonForOutputEnhanced } from './utils/toolFormatter';
+import { formatJsonForCompactOutput } from './utils/compactFormatter';
 
 export function setupEventListeners(services: AppServices, getMainWindow: () => BrowserWindow | null): void {
   const {
@@ -141,7 +142,8 @@ export function setupEventListeners(services: AppServices, getMainWindow: () => 
         mw.webContents.send('session:output', output);
         
         // Also send formatted version for Output view
-        const formattedText = formatJsonForOutputEnhanced(output.data);
+        // Use compact formatter for better UX
+        const formattedText = formatJsonForCompactOutput(output.data);
         if (formattedText) {
           mw.webContents.send('session:output', {
             ...output,

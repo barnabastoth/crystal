@@ -18,7 +18,7 @@ import { RichOutputWithSidebar } from './session/RichOutputWithSidebar';
 import { RichOutputSettings } from './session/RichOutputView';
 import { RichOutputSettingsPanel } from './session/RichOutputSettingsPanel';
 import { LogView } from './session/LogView';
-import { MessagesView } from './session/MessagesView';
+import { MessagesView } from './MessagesView';
 
 export const SessionView = memo(() => {
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
@@ -308,7 +308,7 @@ export const SessionView = memo(() => {
           )}
           {hook.viewMode === 'messages' && (
             <div className="h-full flex flex-col overflow-hidden">
-              <MessagesView sessionId={activeSession.id} />
+              <MessagesView sessionId={activeSession.id} sessionStatus={activeSession.status} />
             </div>
           )}
         </div>

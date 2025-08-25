@@ -477,7 +477,7 @@ export function registerSessionHandlers(ipcMain: IpcMain, services: AppServices)
       }
 
       // Performance optimization: Process outputs in batches to avoid blocking
-      const { formatJsonForOutputEnhanced } = await import('../utils/toolFormatter');
+      const { formatJsonForCompactOutput } = await import('../utils/compactFormatter');
       const BATCH_SIZE = 100;
       const transformedOutputs = [];
       
@@ -487,7 +487,7 @@ export function registerSessionHandlers(ipcMain: IpcMain, services: AppServices)
         const transformedBatch = batch.map(output => {
           if (output.type === 'json') {
             // Generate formatted output from JSON
-            const outputText = formatJsonForOutputEnhanced(output.data);
+            const outputText = formatJsonForCompactOutput(output.data);
             if (outputText) {
               // Return as stdout for the Output view
               return {
