@@ -2,6 +2,82 @@
 
 Created by [Stravu](https://stravu.com/?utm_source=Crystal&utm_medium=OS&utm_campaign=Crystal&utm_id=1)
 
+## 🚨 MANDATORY SECTION FOR ALL AI AGENTS 🚨
+
+### Critical Instructions - READ FIRST
+
+**EVERY AI agent working on this project MUST follow these rules WITHOUT EXCEPTION:**
+
+1. **BUILD AND TEST REQUIREMENT**: 
+   - ALWAYS build the project after making changes using: `npm run dist`
+   - This creates the packaged Linux AppImage in `dist-electron/`
+   - Test your changes by running the built application
+   - NEVER commit code without building and testing first
+
+2. **NO UNAUTHORIZED FILE CREATION**:
+   - NEVER create new files unless explicitly required for the feature
+   - ALWAYS prefer editing existing files over creating new ones
+   - NEVER create documentation files (*.md) unless specifically requested
+
+3. **STATE MANAGEMENT RULES**:
+   - NEVER modify session output handling without explicit permission (see Critical Implementation Details)
+   - Use targeted state updates - avoid global refreshes
+   - Follow the established IPC event patterns
+
+4. **GIT WORKFLOW**:
+   - This project uses git worktrees for parallel development
+   - Each Claude session operates in its own worktree
+   - NEVER commit directly to main branch
+   - Always work in your assigned worktree
+
+5. **DEPENDENCY MANAGEMENT**:
+   - Use `yarn` for package management (NOT npm or pnpm for dependencies)
+   - Exception: Use `npm run dist` for building only
+   - If you encounter memory issues: `NODE_OPTIONS="--max-old-space-size=8192" yarn install`
+
+6. **CODE STYLE**:
+   - Follow existing patterns in the codebase
+   - Use TypeScript strictly - no `any` types without justification
+   - Maintain the modular architecture - don't create monolithic files
+
+7. **TESTING COMMANDS**:
+   ```bash
+   # Development mode (use for testing changes)
+   yarn electron-dev
+   
+   # Build and package for Linux (use before committing)
+   npm run dist
+   
+   # Type checking (must pass)
+   yarn typecheck
+   
+   # Linting (must pass)
+   yarn lint
+   ```
+
+### Quick Start for AI Agents
+
+```bash
+# 1. Check your current worktree
+pwd  # Should be in /home/exworm/projects/crystal/worktrees/[session-name]
+
+# 2. Install dependencies if needed
+yarn install
+
+# 3. Run in development mode to test
+yarn electron-dev
+
+# 4. Make your changes
+
+# 5. Build and test the packaged app
+npm run dist
+
+# 6. Run the built app to verify
+./dist-electron/Crystal-*.AppImage
+
+# 7. Only then commit your changes
+```
+
 ## Project Overview
 
 Crystal is a fully-implemented Electron desktop application for managing multiple Claude Code instances against a single directory using git worktrees. It provides a streamlined interface for running parallel Claude Code sessions with different approaches to the same problem.
@@ -10,6 +86,57 @@ Crystal is a fully-implemented Electron desktop application for managing multipl
 Use these reference pages for more information:
 - How to invoke Claude Code through the command line as an SDK: https://docs.anthropic.com/en/docs/claude-code/sdk
 - How to run multiple Claude Code instances with Git Worktrees: https://docs.anthropic.com/en/docs/claude-code/tutorials#run-parallel-claude-code-sessions-with-git-worktrees
+
+## Project Structure
+
+```
+crystal/
+├── frontend/                    # React 19 renderer process
+│   ├── src/
+│   │   ├── components/         # UI Components (75+ components)
+│   │   │   ├── session/       # Session-specific components
+│   │   │   ├── ui/           # Reusable UI primitives
+│   │   │   └── dashboard/    # Dashboard components
+│   │   ├── hooks/            # Custom React hooks
+│   │   ├── stores/           # Zustand state management
+│   │   ├── styles/           # Design tokens and CSS
+│   │   │   └── tokens/       # Color, spacing, typography tokens
+│   │   ├── types/            # TypeScript type definitions
+│   │   └── utils/            # Utility functions
+│   ├── package.json          # Frontend dependencies
+│   └── vite.config.ts        # Vite bundler configuration
+│
+├── main/                       # Electron main process
+│   ├── src/
+│   │   ├── index.ts          # Main entry point (414 lines)
+│   │   ├── events.ts         # Event handling (359 lines)
+│   │   ├── database/         # SQLite database layer
+│   │   │   ├── database.ts   # Database operations
+│   │   │   ├── models.ts     # TypeScript models
+│   │   │   ├── schema.sql    # Base schema
+│   │   │   └── migrations/   # Schema migrations (20+ files)
+│   │   ├── ipc/             # IPC handlers (modular)
+│   │   │   ├── git.ts       # Git operations (843 lines)
+│   │   │   ├── session.ts   # Session management (428 lines)
+│   │   │   └── [15+ more handlers]
+│   │   ├── services/        # Business logic layer
+│   │   │   ├── sessionManager.ts
+│   │   │   ├── worktreeManager.ts
+│   │   │   ├── gitStatusManager.ts
+│   │   │   └── [12+ more services]
+│   │   └── utils/           # Utility functions
+│   └── package.json         # Main process dependencies
+│
+├── shared/                    # Shared types between processes
+│   └── types.ts             # Common TypeScript interfaces
+│
+├── dist-electron/            # Build output directory
+│   └── Crystal-*.AppImage   # Packaged Linux application
+│
+├── docs/                     # Documentation
+├── scripts/                  # Build and utility scripts
+└── package.json             # Root workspace configuration
+```
 
 ## Implementation Status: ✅ COMPLETE
 
@@ -110,32 +237,31 @@ All core features have been successfully implemented with significant enhancemen
 
 ## Technical Stack
 
-### Electron Application
-- **Main Process**: Electron main process with IPC communication
-  - Window management with native OS integration
-  - Electron Store for configuration persistence
-  - IPC handlers for renderer communication
+### Technology Stack
 
-### Frontend (React 19 + TypeScript)
+#### Frontend (Renderer Process)
 - **Framework**: React 19 with TypeScript
-- **State Management**: Zustand for reactive state management
-- **UI Styling**: Tailwind CSS utility-first framework
-- **Terminal**: @xterm/xterm professional terminal emulator
-- **Build Tool**: Vite for fast development
-- **Icons**: Lucide React for consistent iconography
+- **State Management**: Zustand (reactive, performant)
+- **UI Framework**: Tailwind CSS with custom design tokens
+- **Terminal**: XTerm.js (50,000 line buffer)
+- **Code Editor**: Monaco Editor (VS Code's editor)
+- **Build Tool**: Vite (fast HMR, optimized builds)
+- **Diff Viewer**: react-diff-viewer-continued
 
-### Backend Services (Integrated in Main Process)
-- **Runtime**: Node.js with TypeScript
-- **IPC Server**: Direct IPC communication with renderer process
-- **Database**: Better-SQLite3 for synchronous operations
-- **Task Queue**: Bull with in-memory queue for Electron
+#### Backend (Main Process)
+- **Runtime**: Node.js 22+ with TypeScript
+- **Database**: Better-SQLite3 (synchronous, embedded)
+- **Process Management**: node-pty (PTY processes)
+- **Task Queue**: Bull (Redis-optional in-memory queue)
 - **Claude Integration**: @anthropic-ai/claude-code SDK
-- **Process Management**: node-pty for PTY processes
-- **Git Integration**: Command-line git worktree management
+- **IPC**: Electron IPC (secure inter-process communication)
+- **Git**: Command-line git with worktree support
 
-### Communication
-- **Electron IPC**: Secure inter-process communication for all operations
-- **Event System**: IPC-based event handling for real-time updates
+#### Desktop Framework
+- **Electron**: v36.4.0
+- **Auto-Updates**: electron-updater
+- **Config Storage**: electron-store
+- **Platform Support**: Linux (AppImage, .deb), macOS (universal)
 
 ## Architecture
 
@@ -180,6 +306,288 @@ All core features have been successfully implemented with significant enhancemen
 │              │     Git Worktrees           │              │
 │              └─────────────────────────────┘              │
 └─────────────────────────────────────────────────────────┘
+```
+
+### Component Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    User Interface Layer                   │
+├─────────────────────────────────────────────────────────┤
+│  Sidebar │ SessionView │ Terminal │ DiffViewer │ Help   │
+│  • Sessions List        • XTerm.js                       │
+│  • Project Selector     • Output/Messages/Diff tabs      │
+│  • Prompt History       • Multi-line input               │
+└─────────────────────────────────────────────────────────┘
+                              │
+                    ┌─────────▼─────────┐
+                    │   IPC Bridge       │
+                    │ Bi-directional     │
+                    │ Event-driven       │
+                    └─────────┬─────────┘
+                              │
+┌─────────────────────────────────────────────────────────┐
+│                  Main Process Services                    │
+├─────────────────────────────────────────────────────────┤
+│ SessionManager │ WorktreeManager │ GitStatusManager      │
+│ • Process spawn │ • Worktree ops  │ • Status tracking   │
+│ • Output stream │ • Branch mgmt    │ • Diff generation  │
+│ • Status track  │ • Cleanup        │ • Commit tracking  │
+├─────────────────────────────────────────────────────────┤
+│              DatabaseService (SQLite)                     │
+│ • Sessions     • Projects      • Outputs                 │
+│ • Messages     • Diffs         • Markers                 │
+└─────────────────────────────────────────────────────────┘
+                              │
+                    ┌─────────▼─────────┐
+                    │ External Processes │
+                    │ • Claude Code      │
+                    │ • Git operations   │
+                    │ • Terminal PTY     │
+                    └───────────────────┘
+```
+
+## Database Schema
+
+### Core Tables
+
+```sql
+-- Projects: Multi-project support
+projects (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  path TEXT NOT NULL UNIQUE,
+  system_prompt TEXT,
+  run_script TEXT,
+  build_script TEXT,
+  active BOOLEAN DEFAULT 0,
+  default_permission_mode TEXT,
+  commit_mode TEXT,
+  display_order INTEGER
+)
+
+-- Sessions: Claude Code instances
+sessions (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  initial_prompt TEXT NOT NULL,
+  worktree_name TEXT NOT NULL,
+  worktree_path TEXT NOT NULL,
+  status TEXT NOT NULL,
+  project_id INTEGER,
+  folder_id TEXT,
+  claude_session_id TEXT,
+  permission_mode TEXT,
+  is_main_repo BOOLEAN,
+  archived BOOLEAN DEFAULT 0,
+  is_favorite BOOLEAN DEFAULT 0,
+  model TEXT,
+  commit_mode TEXT,
+  created_at DATETIME,
+  updated_at DATETIME,
+  last_viewed_at DATETIME,
+  run_started_at DATETIME
+)
+
+-- Session Outputs: Terminal history
+session_outputs (
+  id INTEGER PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  type TEXT NOT NULL, -- stdout/stderr/json/system
+  data TEXT NOT NULL,
+  timestamp DATETIME,
+  FOREIGN KEY (session_id) REFERENCES sessions(id)
+)
+
+-- Conversation Messages: Chat history
+conversation_messages (
+  id INTEGER PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  message_type TEXT, -- user/assistant
+  content TEXT NOT NULL,
+  timestamp DATETIME
+)
+
+-- Execution Diffs: Git changes per execution
+execution_diffs (
+  id INTEGER PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  execution_number INTEGER,
+  diff_summary TEXT,
+  files_changed TEXT,
+  commit_message TEXT,
+  timestamp DATETIME
+)
+
+-- Prompt Markers: Navigation points
+prompt_markers (
+  id INTEGER PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  prompt_text TEXT,
+  output_index INTEGER,
+  timestamp DATETIME,
+  completion_timestamp DATETIME
+)
+```
+
+## Design System
+
+### Color Tokens (CSS Variables)
+
+```css
+/* Brand Colors - Lilac/Purple Theme */
+--lilac-500: rgb(139 103 246)  /* Primary brand color */
+--lilac-600: rgb(124 79 243)   /* Hover state */
+--lilac-700: rgb(104 56 235)   /* Active state */
+
+/* Status Colors */
+--green-500: rgb(34 197 94)    /* Success/Running */
+--amber-500: rgb(245 158 11)   /* Warning/Waiting */
+--red-500: rgb(239 68 68)      /* Error/Failed */
+--blue-500: rgb(59 130 246)    /* Info/New activity */
+
+/* Theme Colors */
+--background: Light theme uses warm whites
+--foreground: Dark grays for text
+--surface: Elevated surfaces use subtle shadows
+```
+
+### Component Library
+
+#### UI Primitives (`frontend/src/components/ui/`)
+- **Button**: Primary, secondary, ghost, outline variants
+- **Input/Textarea**: Form controls with validation states
+- **Select/Dropdown**: Custom styled selects
+- **Switch/Toggle**: Binary state controls
+- **Badge/Pill**: Status indicators
+- **Card**: Container component with collapsible variant
+- **Modal**: Dialog system with backdrop
+- **Tooltip**: Contextual help system
+
+#### Session Components (`frontend/src/components/session/`)
+- **SessionView**: Main session interface
+- **SessionInput**: Multi-line input with image support
+- **RichOutputView**: Formatted terminal output
+- **MessagesView**: Raw JSON message viewer
+- **ViewTabs**: Tab navigation system
+- **ThinkingPlaceholder**: Loading states
+
+#### Feature Components
+- **DraggableProjectTreeView**: Hierarchical session organization
+- **CombinedDiffView**: Git diff visualization
+- **PromptHistory**: Searchable prompt archive
+- **GitStatusIndicator**: Real-time git status
+- **NotificationSettings**: Sound and desktop alerts
+
+## Workflows
+
+### Session Creation Workflow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant IPC
+    participant SessionManager
+    participant WorktreeManager
+    participant Database
+    participant ClaudeCode
+
+    User->>UI: Click "Create Session"
+    UI->>UI: Show CreateSessionDialog
+    User->>UI: Enter prompt & settings
+    UI->>IPC: sessions:create
+    IPC->>SessionManager: createSession()
+    SessionManager->>Database: Insert session record
+    SessionManager->>WorktreeManager: createWorktree()
+    WorktreeManager->>WorktreeManager: git worktree add
+    SessionManager->>ClaudeCode: spawn process
+    ClaudeCode-->>SessionManager: output stream
+    SessionManager-->>IPC: session-output event
+    IPC-->>UI: Update terminal
+```
+
+### Git Operations Workflow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant IPC
+    participant GitHandler
+    participant Git
+
+    User->>UI: Click "Rebase from main"
+    UI->>IPC: git:rebase-from-main
+    IPC->>GitHandler: rebaseFromMain()
+    GitHandler->>Git: git fetch origin
+    GitHandler->>Git: git rebase origin/main
+    alt Rebase successful
+        GitHandler-->>IPC: Success
+        IPC-->>UI: Show success message
+    else Conflicts detected
+        GitHandler-->>IPC: Conflict error
+        IPC-->>UI: Show conflict dialog
+    end
+```
+
+### Build and Deployment Workflow
+
+```bash
+# Development Workflow
+1. yarn install                    # Install dependencies
+2. yarn electron-dev              # Run in development mode
+3. Make changes                   # Edit code
+4. yarn typecheck                 # Verify types
+5. yarn lint                      # Check code style
+
+# Build Workflow
+1. yarn build:frontend            # Build React app
+2. yarn build:main               # Build main process
+3. yarn inject-build-info        # Add version info
+4. yarn generate-notices         # Generate licenses
+5. electron-builder --linux      # Create AppImage
+
+# Simplified Build (Recommended)
+npm run dist                     # Runs all build steps
+```
+
+## IPC Communication
+
+### IPC Handlers Structure
+
+```typescript
+// Main process handlers in main/src/ipc/
+├── session.ts     // Session operations
+├── git.ts        // Git operations  
+├── project.ts    // Project management
+├── config.ts     // Configuration
+├── file.ts       // File operations
+├── folders.ts    // Folder hierarchy
+├── dashboard.ts  // Dashboard data
+├── commitMode.ts // Commit features
+├── stravu.ts     // Stravu integration
+└── [more...]     // 15+ handler modules
+```
+
+### Event System
+
+```typescript
+// Session Events
+'session:created'        // New session created
+'session:updated'        // Status/data changed
+'session:deleted'        // Session removed
+'session:output'         // Terminal output
+'session:status-changed' // Status update
+
+// Git Events
+'git:status-changed'     // Working tree status
+'git:diff-generated'     // Diff available
+'git:commit-created'     // Commit successful
+
+// Project Events
+'project:activated'      // Active project changed
+'project:updated'        // Settings modified
 ```
 
 ## Critical Implementation Details
@@ -746,12 +1154,154 @@ In development mode, Crystal automatically captures all frontend console logs an
 
 **Note**: This feature is only active in development mode and will not affect production builds.
 
+## Development Commands
+
+### Essential Commands
+
+```bash
+# Install dependencies
+yarn install
+
+# Development mode
+yarn electron-dev       # Full Electron app
+yarn dev               # Frontend only
+
+# Build and package
+npm run dist           # Build for Linux (recommended)
+yarn build:mac        # Build for macOS
+yarn build:frontend   # Frontend only
+yarn build:main      # Main process only
+
+# Code quality
+yarn typecheck        # Type checking
+yarn lint            # Linting
+yarn test           # Run tests
+
+# After building
+./dist-electron/Crystal-*.AppImage  # Run built app
+```
+
+### Troubleshooting
+
+```bash
+# Memory issues during install
+NODE_OPTIONS="--max-old-space-size=8192" yarn install
+
+# Rebuild native modules
+yarn electron:rebuild
+
+# Clean build
+rm -rf frontend/dist main/dist dist-electron
+npm run dist
+```
+
+## Configuration Files
+
+### Root Configuration
+- `package.json` - Workspace configuration
+- `pnpm-workspace.yaml` - Monorepo setup
+- `.env` - Environment variables (create if needed)
+
+### Frontend Configuration
+- `frontend/vite.config.ts` - Vite bundler
+- `frontend/tailwind.config.js` - Tailwind CSS
+- `frontend/tsconfig.json` - TypeScript
+
+### Main Configuration
+- `main/tsconfig.json` - TypeScript
+- `main/vitest.config.ts` - Test runner
+
+### Build Configuration
+- `electron-builder` config in root package.json
+- Platform-specific settings for Linux/macOS
+
+## Testing
+
+```bash
+# Unit tests
+yarn test              # Run all tests
+yarn test:watch       # Watch mode
+yarn test:coverage    # Coverage report
+
+# E2E tests (Playwright)
+yarn test:ui          # Interactive UI
+yarn test:headed      # Browser visible
+yarn test:ci         # CI mode
+```
+
+## Deployment
+
+### Linux Build
+```bash
+npm run dist
+# Creates:
+# - dist-electron/Crystal-{version}-linux-x86_64.AppImage
+# - dist-electron/Crystal-{version}-linux-x64.deb
+```
+
+### macOS Build
+```bash
+yarn build:mac           # Intel + Apple Silicon
+yarn build:mac:x64      # Intel only
+yarn build:mac:arm64    # Apple Silicon only
+```
+
+### Release Process
+1. Update version in package.json files
+2. Build with `npm run dist`
+3. Test the built application
+4. Create git tag
+5. GitHub Actions handles release
+
+## Security Considerations
+
+- Electron context isolation enabled
+- Preload scripts for secure IPC
+- No remote content loading
+- Sanitized user inputs
+- Secure storage for API keys
+- Git operations sandboxed to worktrees
+
+## Performance Optimizations
+
+- Lazy loading of session outputs
+- Debounced state updates
+- Virtual scrolling in terminal
+- Cached git status
+- Optimized diff generation
+- Incremental session loading
+- Request animation frame for UI updates
+
+## Known Issues and Solutions
+
+### Diff Viewer Scrollbars
+- Keep wrapper simple with `overflow: auto`
+- Don't override internal styles
+- Check parent containers for `overflow-hidden`
+
+### Session Output Issues
+- Don't modify without permission
+- Database is source of truth
+- Transformations are on-demand
+
+### Timestamp Calculations
+- Always use utility functions
+- Store in UTC, display in local
+- Validate before calculations
+
+## Support and Resources
+
+- **Documentation**: `/docs` directory
+- **Architecture**: `docs/CRYSTAL_ARCHITECTURE.md`
+- **Database**: `docs/DATABASE_DOCUMENTATION.md`
+- **Troubleshooting**: `docs/troubleshooting/`
+- **GitHub Issues**: Report bugs and features
+- **Discord**: Community support
+
+## License
+
+MIT License - See LICENSE file
+
 ## Disclaimer
 
 Crystal is an independent project created by [Stravu](https://stravu.com/?utm_source=Crystal&utm_medium=OS&utm_campaign=Crystal&utm_id=1). Claude™ is a trademark of Anthropic, PBC. Crystal is not affiliated with, endorsed by, or sponsored by Anthropic. This tool is designed to work with Claude Code, which must be installed separately.
-
-## important-instruction-reminders
-Do what has been asked; nothing more, nothing less.
-NEVER create files unless they're absolutely necessary for achieving your goal.
-ALWAYS prefer editing an existing file to creating a new one.
-NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

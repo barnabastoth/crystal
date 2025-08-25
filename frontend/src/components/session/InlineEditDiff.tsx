@@ -134,7 +134,7 @@ export const InlineEditDiff: React.FC<InlineEditDiffProps> = ({
             styles={customStyles}
             hideLineNumbers={false}
             showDiffOnly={true}
-            compareMethod="diffLines"
+            compareMethod={"diffLines" as any}
           />
         </div>
       )}
