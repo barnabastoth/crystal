@@ -53,25 +53,75 @@ function shouldLog(level: 'log' | 'info' | 'debug', args: any[]): boolean {
 export function setupConsoleWrapper() {
   console.log = (...args: any[]) => {
     if (shouldLog('log', args)) {
-      originalConsole.log(...args);
+      try {
+        originalConsole.log(...args);
+      } catch (error: any) {
+        // Silently ignore EPIPE errors when console stream is closed
+        if (error.code !== 'EPIPE') {
+          // For non-EPIPE errors, try to at least save to a file or silently fail
+          try {
+            originalConsole.error('[ConsoleWrapper] Failed to write log:', error.message);
+          } catch {
+            // Complete silence if even error logging fails
+          }
+        }
+      }
     }
   };
   
   console.info = (...args: any[]) => {
     if (shouldLog('info', args)) {
-      originalConsole.info(...args);
+      try {
+        originalConsole.info(...args);
+      } catch (error: any) {
+        // Silently ignore EPIPE errors
+        if (error.code !== 'EPIPE') {
+          try {
+            originalConsole.error('[ConsoleWrapper] Failed to write info:', error.message);
+          } catch {
+            // Silent fail
+          }
+        }
+      }
     }
   };
   
   console.debug = (...args: any[]) => {
     if (shouldLog('debug', args)) {
-      originalConsole.debug(...args);
+      try {
+        originalConsole.debug(...args);
+      } catch (error: any) {
+        // Silently ignore EPIPE errors
+        if (error.code !== 'EPIPE') {
+          try {
+            originalConsole.error('[ConsoleWrapper] Failed to write debug:', error.message);
+          } catch {
+            // Silent fail
+          }
+        }
+      }
     }
   };
   
-  // Always log warnings and errors
-  console.warn = originalConsole.warn;
-  console.error = originalConsole.error;
+  // Wrap warnings and errors with try-catch as well
+  console.warn = (...args: any[]) => {
+    try {
+      originalConsole.warn(...args);
+    } catch (error: any) {
+      // Silently ignore EPIPE errors for warnings
+      if (error.code !== 'EPIPE') {
+        // Can't log the error, just silently fail
+      }
+    }
+  };
+  
+  console.error = (...args: any[]) => {
+    try {
+      originalConsole.error(...args);
+    } catch (error: any) {
+      // Even error logging can fail with EPIPE, silently ignore
+    }
+  };
 }
 
 // Export original console for critical logging

@@ -548,6 +548,32 @@ export class SessionManager extends EventEmitter {
     this.db.clearSessionOutputs(id);
   }
 
+  revertLastMessage(id: string): boolean {
+    const success = this.db.deleteLastUserMessage(id);
+    if (success) {
+      // Also remove corresponding outputs
+      const outputs = this.db.getSessionOutputs(id);
+      // Find the last user message in outputs and remove everything after it
+      let lastUserIndex = -1;
+      for (let i = outputs.length - 1; i >= 0; i--) {
+        if (outputs[i].type === 'stdout' && outputs[i].data.includes('You:') || 
+            (outputs[i].type === 'json' && outputs[i].data.includes('"role":"user"'))) {
+          lastUserIndex = i;
+          break;
+        }
+      }
+      
+      if (lastUserIndex >= 0) {
+        // Clear outputs and re-add only the ones before the last user message
+        this.db.clearSessionOutputs(id);
+        for (let i = 0; i < lastUserIndex; i++) {
+          this.db.addSessionOutput(id, outputs[i].type, outputs[i].data);
+        }
+      }
+    }
+    return success;
+  }
+
   markSessionAsViewed(id: string): void {
     const updatedDbSession = this.db.markSessionAsViewed(id);
     if (updatedDbSession) {

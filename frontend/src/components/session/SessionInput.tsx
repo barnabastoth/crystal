@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Session } from '../../types/session';
 import { ViewMode } from '../../hooks/useSessionView';
-import { Cpu } from 'lucide-react';
+import { Cpu, Undo2 } from 'lucide-react';
 import { API } from '../../utils/api';
 
 interface SessionInputProps {
@@ -99,6 +99,21 @@ export const SessionInput: React.FC<SessionInputProps> = ({
     }
   };
 
+  const handleRevertLastMessage = async () => {
+    try {
+      const result = await API.sessions.revertLastMessage(activeSession.id);
+      if (result.success) {
+        // Refresh the session output
+        window.location.reload(); // Simple reload for now
+      } else {
+        alert(result.error || 'Failed to revert message');
+      }
+    } catch (error) {
+      console.error('Error reverting message:', error);
+      alert('Failed to revert message');
+    }
+  };
+
   const placeholder = viewMode === 'terminal'
     ? (activeSession.isRunning ? "Script is running..." : (activeSession.status === 'waiting' ? "Enter your response... (⌘↵ to send)" : "Enter terminal command... (⌘↵ to send)"))
     : (activeSession.status === 'waiting' ? "Enter your response... (⌘↵ to send)" : "Continue conversation... (⌘↵ to send)");
@@ -128,18 +143,29 @@ export const SessionInput: React.FC<SessionInputProps> = ({
             </button>
           )}
         </div>
-        <button 
-          onClick={onClickSend} 
-          disabled={isSubmitting}
-          className={`px-4 text-white rounded-md min-w-[100px] font-medium transition-colors ${
-            isSubmitting 
-              ? 'bg-gray-500 cursor-not-allowed' 
-              : 'bg-interactive hover:bg-interactive-hover'
-          }`}
-          style={{ height: '67px' }}
-        >
-          {isSubmitting ? 'Processing...' : (viewMode === 'terminal' && !activeSession.isRunning && activeSession.status !== 'waiting' ? 'Run' : (activeSession.status === 'waiting' ? 'Send' : 'Continue'))}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleRevertLastMessage}
+            disabled={isSubmitting || activeSession.status === 'running'}
+            className="px-3 text-white rounded-md font-medium transition-colors bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            style={{ height: '67px' }}
+            title="Revert last message"
+          >
+            <Undo2 className="w-4 h-4" />
+          </button>
+          <button 
+            onClick={onClickSend} 
+            disabled={isSubmitting}
+            className={`px-4 text-white rounded-md min-w-[100px] font-medium transition-colors ${
+              isSubmitting 
+                ? 'bg-gray-500 cursor-not-allowed' 
+                : 'bg-interactive hover:bg-interactive-hover'
+            }`}
+            style={{ height: '67px' }}
+          >
+            {isSubmitting ? 'Processing...' : (viewMode === 'terminal' && !activeSession.isRunning && activeSession.status !== 'waiting' ? 'Run' : (activeSession.status === 'waiting' ? 'Send' : 'Continue'))}
+          </button>
+        </div>
       </div>
       <div className="mt-2 flex items-center gap-4">
         <label className="flex items-center gap-2 cursor-pointer group" title="Triggers Claude Code to use its maximum thinking token limit. Slower but better for difficult tasks.">

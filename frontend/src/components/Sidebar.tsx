@@ -20,6 +20,7 @@ export function Sidebar({ onHelpClick, onAboutClick, onPromptHistoryClick, width
   const [version, setVersion] = useState<string>('');
   const [gitCommit, setGitCommit] = useState<string>('');
   const [worktreeName, setWorktreeName] = useState<string>('');
+  const mrModVersion = 'v0.0.1'; // Mr. Mod version
 
   useEffect(() => {
     // Fetch version info on component mount
@@ -135,11 +136,18 @@ export function Sidebar({ onHelpClick, onAboutClick, onPromptHistoryClick, width
         {version && (
           <div className="px-4 py-2 border-t border-border-primary">
             <div 
-              className="text-xs text-text-tertiary text-center cursor-pointer hover:text-text-secondary transition-colors truncate"
+              className="text-xs text-center cursor-pointer transition-colors truncate"
               onClick={onAboutClick}
               title="Click to view version details"
             >
-              v{version}{worktreeName && ` • ${worktreeName}`}{gitCommit && ` • ${gitCommit}`}
+              <span className="text-text-tertiary hover:text-text-secondary">
+                v{version}
+              </span>
+              <span className="text-purple-400 ml-2">
+                mr-mod {mrModVersion}
+              </span>
+              {worktreeName && <span className="text-text-tertiary"> • {worktreeName}</span>}
+              {gitCommit && <span className="text-text-tertiary"> • {gitCommit}</span>}
             </div>
           </div>
         )}

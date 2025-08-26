@@ -56,6 +56,18 @@ export class Logger {
       // Open write stream in append mode
       this.logStream = fs.createWriteStream(this.currentLogFile, { flags: 'a' });
       
+      // Add error handlers to prevent uncaught exceptions
+      this.logStream.on('error', (error: any) => {
+        if (error.code !== 'EPIPE') {
+          this.originalConsole.error('[Logger] Stream error:', error);
+        }
+        this.logStream = null;
+      });
+      
+      this.logStream.on('finish', () => {
+        this.logStream = null;
+      });
+      
       // Clean up old log files
       this.cleanupOldLogs();
       
@@ -178,18 +190,33 @@ export class Logger {
         this.rotateLogIfNeeded();
       }
       
-      // Write with callback
-      this.logStream.write(message, (writeError) => {
-        if (writeError) {
-          if (callback) callback(writeError);
-        } else {
-          // Only increment size on successful write
-          this.currentLogSize += messageSize;
-        }
+      // Write with callback - add try-catch for safety
+      try {
+        const canWrite = this.logStream.write(message, (writeError) => {
+          if (writeError) {
+            if (callback) callback(writeError);
+            this.handleWriteError(writeError);
+          } else {
+            // Only increment size on successful write
+            this.currentLogSize += messageSize;
+            if (callback) callback(undefined);
+          }
+          
+          // Process next item in queue
+          processNext();
+        });
         
-        // Process next item in queue
+        // If write returns false, stream buffer is full but will be written
+        if (!canWrite) {
+          // Just log a warning, the callback will still be called
+          // this.originalConsole.warn('[Logger] Stream buffer full, queuing write');
+        }
+      } catch (writeError: any) {
+        // Handle synchronous write errors
+        if (callback) callback(writeError);
+        this.handleWriteError(writeError);
         processNext();
-      });
+      }
     };
     
     processNext();
@@ -231,7 +258,14 @@ export class Logger {
           // Use a direct write to avoid potential recursion through writeToFile
           const errorMessage = `[${timestamp}] ERROR: Failed to write to console: ${consoleError.message}\n`;
           if (this.logStream && !this.logStream.destroyed) {
-            this.logStream.write(errorMessage);
+            try {
+              this.logStream.write(errorMessage);
+            } catch (streamError: any) {
+              // Stream write failed - likely EPIPE or destroyed
+              if (streamError.code === 'EPIPE') {
+                this.logStream = null;
+              }
+            }
           }
         } catch {
           // Silently fail - we've done our best

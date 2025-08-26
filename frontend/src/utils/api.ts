@@ -58,6 +58,11 @@ export class API {
       return window.electronAPI.sessions.continue(sessionId, prompt, model);
     },
 
+    async revertLastMessage(sessionId: string) {
+      if (!isElectron()) throw new Error('Electron API not available');
+      return window.electronAPI.sessions.revertLastMessage(sessionId);
+    },
+
     async getOutput(sessionId: string, limit?: number) {
       if (!isElectron()) throw new Error('Electron API not available');
       return window.electronAPI.sessions.getOutput(sessionId, limit);

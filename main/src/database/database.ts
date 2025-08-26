@@ -1388,6 +1388,42 @@ export class DatabaseService {
     this.db.prepare('DELETE FROM conversation_messages WHERE session_id = ?').run(sessionId);
   }
 
+  deleteLastConversationMessage(sessionId: string): boolean {
+    const lastMessage = this.db.prepare(`
+      SELECT id FROM conversation_messages 
+      WHERE session_id = ? 
+      ORDER BY timestamp DESC 
+      LIMIT 1
+    `).get(sessionId) as { id: number } | undefined;
+    
+    if (lastMessage) {
+      this.db.prepare('DELETE FROM conversation_messages WHERE id = ?').run(lastMessage.id);
+      return true;
+    }
+    return false;
+  }
+
+  deleteLastUserMessage(sessionId: string): boolean {
+    const lastUserMessage = this.db.prepare(`
+      SELECT id FROM conversation_messages 
+      WHERE session_id = ? AND message_type = 'user'
+      ORDER BY timestamp DESC 
+      LIMIT 1
+    `).get(sessionId) as { id: number } | undefined;
+    
+    if (lastUserMessage) {
+      // Also delete any assistant messages that came after this user message
+      this.db.prepare(`
+        DELETE FROM conversation_messages 
+        WHERE session_id = ? AND timestamp >= (
+          SELECT timestamp FROM conversation_messages WHERE id = ?
+        )
+      `).run(sessionId, lastUserMessage.id);
+      return true;
+    }
+    return false;
+  }
+
   // Cleanup operations
   getActiveSessions(): Session[] {
     return this.db.prepare("SELECT * FROM sessions WHERE status IN ('running', 'pending')").all() as Session[];

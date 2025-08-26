@@ -364,6 +364,20 @@ export function registerSessionHandlers(ipcMain: IpcMain, services: AppServices)
     }
   });
 
+  ipcMain.handle('sessions:revert-last-message', async (_event, sessionId: string) => {
+    try {
+      const success = sessionManager.revertLastMessage(sessionId);
+      if (success) {
+        return { success: true, data: { message: 'Last message reverted successfully' } };
+      } else {
+        return { success: false, error: 'No messages to revert' };
+      }
+    } catch (error) {
+      console.error('[IPC] Error reverting message:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to revert message' };
+    }
+  });
+
   ipcMain.handle('sessions:continue', async (_event, sessionId: string, prompt?: string, model?: string) => {
     try {
       // Get session details
